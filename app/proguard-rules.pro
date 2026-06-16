@@ -1,0 +1,3 @@
+-keep class com.ftv.player.data.model.** { *; }
+-dontwarn com.google.android.exoplayer2.**
+-keep class com.google.android.exoplayer2.** { *; }
