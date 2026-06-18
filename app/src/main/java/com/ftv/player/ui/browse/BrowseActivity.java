@@ -49,6 +49,11 @@ public class BrowseActivity extends AppCompatActivity {
         toolbar.setBackgroundColor(getResources().getColor(R.color.primary_dark));
         toolbar.inflateMenu(R.menu.menu_main);
         toolbar.setOnMenuItemClickListener(item -> {
+            if (item.getItemId() == R.id.action_scan) {
+                ChannelRepository.clearProbeCache();
+                loadChannels();
+                return true;
+            }
             if (item.getItemId() == R.id.action_settings) {
                 showSettingsDialog();
                 return true;
@@ -74,17 +79,16 @@ public class BrowseActivity extends AppCompatActivity {
         btnPlayUrl.setOnClickListener(v -> {
             String url = urlInput.getText().toString().trim();
             if (!url.isEmpty()) {
-                if (url.endsWith(".m3u") || url.endsWith(".m3u8")) {
-                    loadChannelsFromUrl(url);
-                } else {
-                    playUrl(url, "Stream");
-                }
+                playUrl(url, "Stream");
             } else {
                 Toast.makeText(this, "Enter a stream URL", Toast.LENGTH_SHORT).show();
             }
         });
 
-        swipeRefresh.setOnRefreshListener(this::loadChannels);
+        swipeRefresh.setOnRefreshListener(() -> {
+            ChannelRepository.clearProbeCache();
+            loadChannels();
+        });
         loadChannels();
     }
 

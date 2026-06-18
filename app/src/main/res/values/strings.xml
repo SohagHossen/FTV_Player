@@ -7,7 +7,7 @@
     <string name="retry">Retry</string>
     <string name="settings">Settings</string>
     <string name="server_url">Server URL</string>
-    <string name="server_url_default">http://172.19.17.28</string>
+    <string name="server_url_default">http://114.129.13.206</string>
     <string name="now_playing">Now Playing</string>
     <string name="channel_list">Channels</string>
 </resources>

@@ -25,6 +25,10 @@ public class ChannelRepository {
 
     private final String serverUrl;
 
+    private static Map<String, List<Channel>> probeCache = null;
+    private static long probeCacheTime = 0;
+    private static final long PROBE_CACHE_TTL = 300_000;
+
     public ChannelRepository(String serverUrl) {
         this.serverUrl = serverUrl.endsWith("/") ? serverUrl.substring(0, serverUrl.length() - 1) : serverUrl;
     }
@@ -45,6 +49,12 @@ public class ChannelRepository {
                 }
 
                 channels = tryLoadFromApi();
+                if (channels != null && !channels.isEmpty()) {
+                    callback.onSuccess(channels);
+                    return;
+                }
+
+                channels = tryLoadProbedStreams();
                 if (channels != null && !channels.isEmpty()) {
                     callback.onSuccess(channels);
                     return;
@@ -205,6 +215,59 @@ public class ChannelRepository {
                 || upper.contains("ENTERTAINMENT") || upper.contains("MUSIC")
                 || upper.contains("DOCUMENTARY") || upper.contains("KIDS")
                 || text.matches(".*\\d+.*");
+    }
+
+    private Map<String, List<Channel>> tryLoadProbedStreams() throws Exception {
+        if (probeCache != null && System.currentTimeMillis() - probeCacheTime < PROBE_CACHE_TTL) {
+            return probeCache;
+        }
+
+        Map<String, List<Channel>> result = new LinkedHashMap<>();
+        List<Channel> channels = new ArrayList<>();
+        int consecutiveFailures = 0;
+        final int MAX_PROBE = 100;
+        final int MAX_CONSECUTIVE_FAILURES = 10;
+
+        for (int i = 0; i < MAX_PROBE; i++) {
+            String probeUrl = serverUrl + "/" + i + ".m3u8";
+            try {
+                URL url = new URL(probeUrl);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setConnectTimeout(2000);
+                conn.setReadTimeout(1000);
+                conn.setRequestProperty("User-Agent", "FTVPlayer/1.0");
+                conn.setInstanceFollowRedirects(true);
+
+                int code = conn.getResponseCode();
+                if (code == 200) {
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
+                    String firstLine = reader.readLine();
+                    reader.close();
+                    if (firstLine != null && firstLine.startsWith("#EXTM3U")) {
+                        String name = "Channel " + i;
+                        channels.add(new Channel(name, probeUrl, null, "All"));
+                        consecutiveFailures = 0;
+                        continue;
+                    }
+                }
+                conn.disconnect();
+            } catch (Exception ignored) {}
+            consecutiveFailures++;
+            if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) break;
+        }
+
+        if (!channels.isEmpty()) {
+            result.put("All", channels);
+            probeCache = result;
+            probeCacheTime = System.currentTimeMillis();
+            return result;
+        }
+        return null;
+    }
+
+    public static void clearProbeCache() {
+        probeCache = null;
+        probeCacheTime = 0;
     }
 
     private String cleanName(String name) {
