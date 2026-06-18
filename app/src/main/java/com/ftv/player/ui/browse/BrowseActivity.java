@@ -4,8 +4,9 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.view.MenuItem;
+import android.text.TextUtils;
 import android.view.View;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -33,6 +34,8 @@ public class BrowseActivity extends AppCompatActivity {
     private ChannelAdapter adapter;
     private SwipeRefreshLayout swipeRefresh;
     private TextView emptyText;
+    private EditText urlInput;
+    private Button btnPlayUrl;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private List<Channel> allChannels = new ArrayList<>();
 
@@ -47,12 +50,14 @@ public class BrowseActivity extends AppCompatActivity {
         toolbar.inflateMenu(R.menu.menu_main);
         toolbar.setOnMenuItemClickListener(item -> {
             if (item.getItemId() == R.id.action_settings) {
-                showServerUrlDialog();
+                showSettingsDialog();
                 return true;
             }
             return false;
         });
 
+        urlInput = findViewById(R.id.url_input);
+        btnPlayUrl = findViewById(R.id.btn_play_url);
         channelList = findViewById(R.id.channel_list);
         swipeRefresh = findViewById(R.id.swipe_refresh);
         emptyText = findViewById(R.id.empty_text);
@@ -66,34 +71,93 @@ public class BrowseActivity extends AppCompatActivity {
         });
         channelList.setAdapter(adapter);
 
-        swipeRefresh.setOnRefreshListener(this::loadChannels);
+        btnPlayUrl.setOnClickListener(v -> {
+            String url = urlInput.getText().toString().trim();
+            if (!url.isEmpty()) {
+                if (url.endsWith(".m3u") || url.endsWith(".m3u8")) {
+                    loadChannelsFromUrl(url);
+                } else {
+                    playUrl(url, "Stream");
+                }
+            } else {
+                Toast.makeText(this, "Enter a stream URL", Toast.LENGTH_SHORT).show();
+            }
+        });
 
+        swipeRefresh.setOnRefreshListener(this::loadChannels);
         loadChannels();
     }
 
-    private void showServerUrlDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Server URL");
+    private void playUrl(String url, String name) {
+        Intent intent = new Intent(this, PlayerActivity.class);
+        intent.putExtra("channel_name", name);
+        intent.putExtra("channel_url", url);
+        startActivity(intent);
+    }
 
-        EditText input = new EditText(this);
-        input.setText(FTVApp.getInstance().getServerUrl());
-        input.setSelection(input.getText().length());
-        builder.setView(input);
+    private void loadChannelsFromUrl(String url) {
+        swipeRefresh.setRefreshing(true);
+        new ChannelRepository(url).loadChannels(new ChannelRepository.Callback() {
+            @Override
+            public void onSuccess(Map<String, List<Channel>> channels) {
+                mainHandler.post(() -> {
+                    allChannels.clear();
+                    for (List<Channel> list : channels.values()) {
+                        allChannels.addAll(list);
+                    }
+                    adapter.notifyDataSetChanged();
+                    swipeRefresh.setRefreshing(false);
+                    if (allChannels.isEmpty()) {
+                        emptyText.setText(R.string.no_channels);
+                        emptyText.setVisibility(View.VISIBLE);
+                    }
+                });
+            }
 
-        builder.setPositiveButton("Save", (dialog, which) -> {
-            String url = input.getText().toString().trim();
-            if (!url.isEmpty()) {
-                FTVApp.getInstance().setServerUrl(url);
-                loadChannels();
+            @Override
+            public void onError(String error) {
+                mainHandler.post(() -> {
+                    swipeRefresh.setRefreshing(false);
+                    emptyText.setText(R.string.error_loading);
+                    emptyText.setVisibility(View.VISIBLE);
+                    Toast.makeText(BrowseActivity.this, error, Toast.LENGTH_LONG).show();
+                });
             }
         });
-        builder.setNegativeButton("Cancel", null);
-        builder.show();
+    }
+
+    private void showSettingsDialog() {
+        View view = getLayoutInflater().inflate(R.layout.dialog_settings, null);
+        EditText serverInput = view.findViewById(R.id.server_url_input);
+        EditText m3uInput = view.findViewById(R.id.m3u_url_input);
+
+        serverInput.setText(FTVApp.getInstance().getServerUrl());
+        m3uInput.setText(FTVApp.getInstance().getM3uUrl());
+
+        new AlertDialog.Builder(this)
+                .setTitle("Settings")
+                .setView(view)
+                .setPositiveButton("Save", (dialog, which) -> {
+                    String serverUrl = serverInput.getText().toString().trim();
+                    if (!serverUrl.isEmpty()) FTVApp.getInstance().setServerUrl(serverUrl);
+                    String m3uUrl = m3uInput.getText().toString().trim();
+                    FTVApp.getInstance().setM3uUrl(m3uUrl);
+                    urlInput.setText(m3uUrl);
+                    loadChannels();
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
     }
 
     private void loadChannels() {
         emptyText.setVisibility(View.GONE);
         swipeRefresh.setRefreshing(true);
+
+        String m3uUrl = FTVApp.getInstance().getM3uUrl();
+        if (!TextUtils.isEmpty(m3uUrl)) {
+            loadChannelsFromUrl(m3uUrl);
+            return;
+        }
 
         String serverUrl = FTVApp.getInstance().getServerUrl();
         new ChannelRepository(serverUrl).loadChannels(new ChannelRepository.Callback() {

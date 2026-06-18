@@ -2,6 +2,7 @@ package com.ftv.player;
 
 import android.app.Application;
 import android.content.SharedPreferences;
+import android.text.TextUtils;
 
 public class FTVApp extends Application {
     private static FTVApp instance;
@@ -25,5 +26,13 @@ public class FTVApp extends Application {
 
     public void setServerUrl(String url) {
         prefs.edit().putString("server_url", url).apply();
+    }
+
+    public String getM3uUrl() {
+        return prefs.getString("m3u_url", "");
+    }
+
+    public void setM3uUrl(String url) {
+        prefs.edit().putString("m3u_url", url).apply();
     }
 }
