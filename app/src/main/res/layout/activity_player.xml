@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/player_background"
@@ -9,7 +10,8 @@
         android:id="@+id/player_view"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_gravity="center" />
+        android:layout_gravity="center"
+        app:use_controller="true" />
 
     <TextView
         android:id="@+id/channel_name"
@@ -24,6 +26,17 @@
         android:paddingBottom="8dp"
         android:textColor="@android:color/white"
         android:textSize="16sp"
+        android:visibility="gone" />
+
+    <ImageButton
+        android:id="@+id/btn_fullscreen"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="16dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@drawable/ic_fullscreen"
+        android:contentDescription="Fullscreen"
         android:visibility="gone" />
 
 </FrameLayout>

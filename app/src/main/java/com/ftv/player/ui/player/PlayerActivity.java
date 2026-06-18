@@ -5,6 +5,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.view.KeyEvent;
 import android.view.View;
+import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -28,6 +29,8 @@ public class PlayerActivity extends AppCompatActivity {
     private String channelUrl;
     private String channelName;
     private boolean isPlaying = true;
+    private boolean isFullscreen = false;
+    private ImageButton btnFullscreen;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -39,6 +42,7 @@ public class PlayerActivity extends AppCompatActivity {
 
         channelNameText = findViewById(R.id.channel_name);
         playerView = findViewById(R.id.player_view);
+        btnFullscreen = findViewById(R.id.btn_fullscreen);
 
         if (channelName != null) {
             channelNameText.setText(channelName);
@@ -50,7 +54,29 @@ public class PlayerActivity extends AppCompatActivity {
             return;
         }
 
+        btnFullscreen.setOnClickListener(v -> toggleFullscreen());
+
         setupPlayer();
+    }
+
+    private void toggleFullscreen() {
+        isFullscreen = !isFullscreen;
+        if (isFullscreen) {
+            getWindow().getDecorView().setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+            );
+            if (getSupportActionBar() != null) getSupportActionBar().hide();
+            btnFullscreen.setImageResource(R.drawable.ic_fullscreen_exit);
+        } else {
+            getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
+            if (getSupportActionBar() != null) getSupportActionBar().show();
+            btnFullscreen.setImageResource(R.drawable.ic_fullscreen);
+        }
     }
 
     private void setupPlayer() {
@@ -86,6 +112,8 @@ public class PlayerActivity extends AppCompatActivity {
 
         player.setPlayWhenReady(true);
         player.prepare();
+
+        playerView.setFullscreenButtonClickListener(v -> toggleFullscreen());
 
         player.addListener(new Player.Listener() {
             @Override
