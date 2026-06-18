@@ -30,7 +30,14 @@ public class ChannelRepository {
     private static final long PROBE_CACHE_TTL = 300_000;
 
     public ChannelRepository(String serverUrl) {
-        this.serverUrl = serverUrl.endsWith("/") ? serverUrl.substring(0, serverUrl.length() - 1) : serverUrl;
+        String url = serverUrl.endsWith("/") ? serverUrl.substring(0, serverUrl.length() - 1) : serverUrl;
+        if (url.contains(".m3u8") || url.contains(".m3u")) {
+            int lastSlash = url.lastIndexOf('/');
+            if (lastSlash > 8) {
+                url = url.substring(0, lastSlash);
+            }
+        }
+        this.serverUrl = url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
     }
 
     public void loadChannels(Callback callback) {

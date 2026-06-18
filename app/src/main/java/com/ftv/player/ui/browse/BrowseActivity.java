@@ -99,37 +99,6 @@ public class BrowseActivity extends AppCompatActivity {
         startActivity(intent);
     }
 
-    private void loadChannelsFromUrl(String url) {
-        swipeRefresh.setRefreshing(true);
-        new ChannelRepository(url).loadChannels(new ChannelRepository.Callback() {
-            @Override
-            public void onSuccess(Map<String, List<Channel>> channels) {
-                mainHandler.post(() -> {
-                    allChannels.clear();
-                    for (List<Channel> list : channels.values()) {
-                        allChannels.addAll(list);
-                    }
-                    adapter.notifyDataSetChanged();
-                    swipeRefresh.setRefreshing(false);
-                    if (allChannels.isEmpty()) {
-                        emptyText.setText(R.string.no_channels);
-                        emptyText.setVisibility(View.VISIBLE);
-                    }
-                });
-            }
-
-            @Override
-            public void onError(String error) {
-                mainHandler.post(() -> {
-                    swipeRefresh.setRefreshing(false);
-                    emptyText.setText(R.string.error_loading);
-                    emptyText.setVisibility(View.VISIBLE);
-                    Toast.makeText(BrowseActivity.this, error, Toast.LENGTH_LONG).show();
-                });
-            }
-        });
-    }
-
     private void showSettingsDialog() {
         View view = getLayoutInflater().inflate(R.layout.dialog_settings, null);
         EditText serverInput = view.findViewById(R.id.server_url_input);
@@ -146,7 +115,6 @@ public class BrowseActivity extends AppCompatActivity {
                     if (!serverUrl.isEmpty()) FTVApp.getInstance().setServerUrl(serverUrl);
                     String m3uUrl = m3uInput.getText().toString().trim();
                     FTVApp.getInstance().setM3uUrl(m3uUrl);
-                    urlInput.setText(m3uUrl);
                     loadChannels();
                 })
                 .setNegativeButton("Cancel", null)
@@ -156,19 +124,55 @@ public class BrowseActivity extends AppCompatActivity {
     private void loadChannels() {
         emptyText.setVisibility(View.GONE);
         swipeRefresh.setRefreshing(true);
-
-        String m3uUrl = FTVApp.getInstance().getM3uUrl();
-        if (!TextUtils.isEmpty(m3uUrl)) {
-            loadChannelsFromUrl(m3uUrl);
-            return;
-        }
+        allChannels.clear();
+        adapter.notifyDataSetChanged();
 
         String serverUrl = FTVApp.getInstance().getServerUrl();
         new ChannelRepository(serverUrl).loadChannels(new ChannelRepository.Callback() {
             @Override
             public void onSuccess(Map<String, List<Channel>> channels) {
                 mainHandler.post(() -> {
-                    allChannels.clear();
+                    for (List<Channel> list : channels.values()) {
+                        allChannels.addAll(list);
+                    }
+                    adapter.notifyDataSetChanged();
+                    swipeRefresh.setRefreshing(false);
+                    if (allChannels.isEmpty()) {
+                        emptyText.setText(R.string.no_channels);
+                        emptyText.setVisibility(View.VISIBLE);
+                    }
+                });
+            }
+
+            @Override
+            public void onError(String error) {
+                mainHandler.post(() -> {
+                    String m3uUrl = FTVApp.getInstance().getM3uUrl();
+                    if (!TextUtils.isEmpty(m3uUrl)) {
+                        loadChannelsFromM3u(m3uUrl);
+                    } else {
+                        swipeRefresh.setRefreshing(false);
+                        emptyText.setText(R.string.error_loading);
+                        emptyText.setVisibility(View.VISIBLE);
+                        Toast.makeText(BrowseActivity.this, error, Toast.LENGTH_LONG).show();
+                    }
+                });
+            }
+        });
+    }
+
+    private void loadChannelsFromM3u(String url) {
+        if (url.endsWith(".m3u8") || url.endsWith(".m3u")) {
+            Channel ch = new Channel("Stream", url);
+            allChannels.add(ch);
+            adapter.notifyDataSetChanged();
+            swipeRefresh.setRefreshing(false);
+            return;
+        }
+        new ChannelRepository(url).loadChannels(new ChannelRepository.Callback() {
+            @Override
+            public void onSuccess(Map<String, List<Channel>> channels) {
+                mainHandler.post(() -> {
                     for (List<Channel> list : channels.values()) {
                         allChannels.addAll(list);
                     }
